@@ -1,44 +1,77 @@
 package controller
 
 import (
-	"myapp/config"
-	"myapp/repository"
+	"myapp/entity"
+	"myapp/service"
 	"net/http"
-	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 )
 
-func Login(c *gin.Context) {
-    // Ambil input username dan password
-    var user struct {
-        Username string `json:"username" binding:"required"`
+type AuthController interface {
+    Register(ctx *gin.Context)
+    Login(ctx *gin.Context)
+}
+
+type authController struct {
+    authService service.AuthService
+}
+
+func NewAuthController(authService service.AuthService) AuthController {
+    return &authController{authService: authService}
+}
+
+func (c *authController) Register(ctx *gin.Context) {
+    var request entity.RegisterRequest
+
+    // Bind JSON dari request body ke struct RegisterRequest
+    if err := ctx.ShouldBindJSON(&request); err != nil {
+        ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+
+    // Panggil service untuk registrasi
+    user, err := c.authService.Register(request)
+    if err != nil {
+        ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+
+    // Berikan respon sukses
+    ctx.JSON(http.StatusOK, gin.H{
+        "message": "Registration successful",
+        "user": gin.H{
+            "id":       user.ID,
+            "username": user.Username,
+            "email":    user.Email,
+            "role":  user.Role,
+        },
+    })
+}
+
+func (c *authController) Login(ctx *gin.Context) {
+    var request struct {
+        Email    string `json:"email" binding:"required,email"`
         Password string `json:"password" binding:"required"`
     }
-    if err := c.ShouldBindJSON(&user); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+
+    // Bind JSON dari request body ke struct
+    if err := ctx.ShouldBindJSON(&request); err != nil {
+        ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
         return
     }
 
-    // Validasi username dan password dari database
-    if !repository.ValidateUser(user.Username, user.Password) {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
-        return
-    }
-
-    // Buat token JWT
-    token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-        "username": user.Username,
-        "exp":      time.Now().Add(time.Hour * 24).Unix(),
-    })
-
-    tokenString, err := token.SignedString([]byte(config.JWT_SECRET))
+    // Panggil service untuk proses login
+    token, err := c.authService.Login(request.Email, request.Password)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+        ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
         return
     }
 
-    // Kembalikan token ke client
-    c.JSON(http.StatusOK, gin.H{"token": tokenString})
+    // Berikan respon sukses dengan token
+    ctx.JSON(http.StatusOK, gin.H{
+        "message": "Login successful",
+        "token":   token,
+    })
 }
+

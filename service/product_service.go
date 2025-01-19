@@ -1,57 +1,69 @@
 package service
 
 import (
+	"errors"
 	"myapp/entity"
 	"myapp/repository"
 )
 
-func GetAllProducts() ([]entity.Product, error) {
-	products, err := repository.GetAllProducts()
+type ProductService interface {
+	GetAllProducts() ([]entity.Product, error)
+	GetProductByID(id uint) (*entity.Product, error)
+	CreateProduct(product *entity.Product) error
+	UpdateProduct(id uint, updatedProduct *entity.Product) error
+	DeleteProduct(id uint) error
+}
+
+type productServiceImpl struct {
+	productRepository repository.ProductRepository
+}
+
+func NewProductService(productRepository repository.ProductRepository) ProductService {
+	return &productServiceImpl{productRepository: productRepository}
+}
+
+func (s *productServiceImpl) GetAllProducts() ([]entity.Product, error) {
+	return s.productRepository.GetAll()
+}
+
+func (s *productServiceImpl) GetProductByID(id uint) (*entity.Product, error) {
+	product, err := s.productRepository.FindByID(id)
 	if err != nil {
 		return nil, err
 	}
-	return products, nil
+	if product == nil {
+		return nil, errors.New("product not found")
+	}
+	return product, nil
 }
 
-func CreateProduct(product entity.Product) error {
-	err := repository.SaveProduct(&product)
+func (s *productServiceImpl) CreateProduct(product *entity.Product) error {
+	return s.productRepository.Save(product)
+}
+
+func (s *productServiceImpl) UpdateProduct(id uint, updatedProduct *entity.Product) error {
+	product, err := s.productRepository.FindByID(id)
 	if err != nil {
 		return err
 	}
-	return nil
-}
-
-func GetProductByID(id int) (*entity.Product, error) {
-	product, err := repository.GetProductByID(uint(id))
-	if err != nil {
-		return nil, err
-	}
-	return &product, nil
-}
-
-func UpdateProduct(id int, updatedProduct entity.Product) error {
-	// Cek apakah produk ada
-	product, err := repository.GetProductByID(uint(id))
-	if err != nil {
-		return err
+	if product == nil {
+		return errors.New("product not found")
 	}
 
-	// Update data produk
 	product.Name = updatedProduct.Name
 	product.Price = updatedProduct.Price
 	product.Stock = updatedProduct.Stock
 
-	err = repository.UpdateProduct(product)
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.productRepository.Update(product)
 }
 
-func DeleteProduct(id int) error {
-	err := repository.DeleteProduct(uint(id))
+func (s *productServiceImpl) DeleteProduct(id uint) error {
+	product, err := s.productRepository.FindByID(id)
 	if err != nil {
 		return err
 	}
-	return nil
+	if product == nil {
+		return errors.New("product not found")
+	}
+	return s.productRepository.Delete(id)
 }

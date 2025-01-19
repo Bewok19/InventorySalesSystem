@@ -2,53 +2,54 @@ package repository
 
 import (
 	"errors"
-	"myapp/config"
 	"myapp/entity"
 
 	"gorm.io/gorm"
 )
 
-func GetAllProducts() ([]entity.Product, error) {
+type ProductRepository interface {
+	GetAll() ([]entity.Product, error)
+	FindByID(id uint) (*entity.Product, error)
+	Save(product *entity.Product) error
+	Update(product *entity.Product) error
+	Delete(id uint) error
+}
+
+type productRepositoryImpl struct {
+	db *gorm.DB
+}
+
+func NewProductRepository(db *gorm.DB) ProductRepository {
+	return &productRepositoryImpl{db: db}
+}
+
+func (r *productRepositoryImpl) GetAll() ([]entity.Product, error) {
 	var products []entity.Product
-	result := config.DB.Find(&products)
-	if result.Error != nil {
-		return nil, result.Error
+	if err := r.db.Find(&products).Error; err != nil {
+		return nil, err
 	}
 	return products, nil
 }
 
-func GetProductByID(id uint) (entity.Product, error) {
+func (r *productRepositoryImpl) FindByID(id uint) (*entity.Product, error) {
 	var product entity.Product
-	result := config.DB.First(&product, id)
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return product, errors.New("product not found")
+	if err := r.db.First(&product, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
 		}
-		return product, result.Error
+		return nil, err
 	}
-	return product, nil
+	return &product, nil
 }
 
-func SaveProduct(product *entity.Product) error {
-	result := config.DB.Create(&product)
-	if result.Error != nil {
-		return result.Error
-	}
-	return nil
+func (r *productRepositoryImpl) Save(product *entity.Product) error {
+	return r.db.Create(product).Error
 }
 
-func UpdateProduct(product entity.Product) error {
-	result := config.DB.Save(&product)
-	if result.Error != nil {
-		return result.Error
-	}
-	return nil
+func (r *productRepositoryImpl) Update(product *entity.Product) error {
+	return r.db.Save(product).Error
 }
 
-func DeleteProduct(id uint) error {
-	result := config.DB.Delete(&entity.Product{}, id)
-	if result.Error != nil {
-		return result.Error
-	}
-	return nil
+func (r *productRepositoryImpl) Delete(id uint) error {
+	return r.db.Delete(&entity.Product{}, id).Error
 }

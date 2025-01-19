@@ -1,9 +1,14 @@
 package entity
 
-type Product struct {
-	ID    uint   `gorm:"primaryKey" json:"id"`
-	Name  string `gorm:"type:varchar(100);not null" json:"name" binding:"required"`
-	Price int    `gorm:"type:int;not null" json:"price" binding:"required,gt=0"`
-	Stock int    `gorm:"type:int;not null" json:"stock" binding:"gte=0"`
-}
+import (
+	"time"
+)
 
+type Product struct {
+	ID          uint      `json:"id" gorm:"primaryKey;autoIncrement"`
+	Name        string    `json:"name" validate:"required,min=3,max=100"`
+	Price       float64   `json:"price" validate:"required,gte=0"`
+	Stock       int       `json:"stock" validate:"required,gte=0"`
+	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime"` // Automatically set on insert
+	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"` // Automatically set on update
+}

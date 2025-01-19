@@ -1,21 +1,15 @@
 package main
 
 import (
-	"log"
+	"myapp/app"
 	"myapp/config"
-	"myapp/router"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
-    // Inisialisasi database
-    config.InitDB()
-    log.Println("Database connection established")
-
-    // Inisialisasi router
-    r := router.SetupRouter()
-
-    // Jalankan server
-    if err := r.Run(":8080"); err != nil {
-        log.Fatal("Failed to start server:", err)
-    }
+    db := config.ConnectDatabase() // Pastikan koneksi DB berhasil
+    r := gin.Default()
+    app.RegisterRoutes(r, db) // Pastikan RegisterRoutes dipanggil di sini
+    r.Run(":8080")            // Jalankan server pada port 8080
 }
